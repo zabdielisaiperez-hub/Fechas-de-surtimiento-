@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogisticsOS | Control de Surtimiento</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .shadow-soft {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        .card-pro {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .input-pro {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            transition: all 0.2s;
+        }
+
+        .input-pro:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        #notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .toast {
+            pointer-events: auto;
+            animation: slideIn 0.3s ease-out forwards;
+            min-width: 280px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 99px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .no-print {
+            @media print { display: none; }
+        }
+
+        #logo-preview-img {
+            max-width: 120px;
+            max-height: 60px;
+            object-fit: contain;
+        }
+
+        .date-qty-tag {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <div id="notification-container"></div>
+
+    <!-- DATALISTS PARA AUTOCOMPLETADO -->
+    <datalist id="list-clientes"></datalist>
+    <datalist id="list-productos"></datalist>
+
+    <!-- CONFIGURACIÓN INICIAL / EDICIÓN PERFIL -->
+    <div id="setup-view" class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="card-pro p-10 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-start mb-6">
+                <div class="text-center flex-1">
+                    <div id="setup-logo-placeholder" class="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-white shadow-lg">
+                        <i class="fas fa-warehouse text-white text-3xl"></i>
+                    </div>
+                    <h1 id="setup-title" class="text-2xl font-bold text-slate-800">Personalización LogisticsOS</h1>
+                </div>
+                <button id="close-setup" onclick="closeProfileEdit()" class="text-slate-400 hover:text-slate-600 hidden">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form id="setup-form" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest">General</h3>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Logotipo</label>
+                            <input type="file" id="s-logo" accept="image/*" class="text-xs w-full bg-slate-50 p-2 rounded-lg border border-dashed border-slate-300">
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Empresa</label>
+                            <input type="text" id="s-empresa" class="input-pro w-full" placeholder="Nombre de la empresa" required>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Encargado Master</label>
+                            <input type="text" id="s-encargado" class="input-pro w-full" placeholder="Nombre completo" required>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Clave Master</label>
+                            <input type="password" id="s-pass" class="input-pro w-full" placeholder="Clave principal" required>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h3 class="text-xs font-black text-amber-600 uppercase tracking-widest">Claves de Acceso por Áreas</h3>
+                        <p class="text-[10px] text-slate-500">Define claves para que otras áreas puedan operar el sistema.</p>
+                        
+                        <div id="keys-container" class="space-y-3">
+                            <!-- Claves dinámicas aquí -->
+                        </div>
+                        
+                        <button type="button" onclick="addKeyRow()" class="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:text-blue-500 hover:border-blue-300 transition text-[10px] font-bold">
+                            <i class="fas fa-plus mr-1"></i> AGREGAR ÁREA / CLAVE
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary w-full shadow-lg shadow-blue-200">Guardar Cambios y Configuración</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="login-view" class="fixed inset-0 z-[100] bg-slate-50 flex items-center justify-center p-4 hidden">
+        <div class="card-pro p-8 max-w-sm w-full shadow-xl text-center">
+            <div id="login-logo-container" class="mb-4 flex justify-center"></div>
+            <h2 id="login-empresa-name" class="text-xl font-bold text-slate-800">Acceso al Sistema</h2>
+            <p id="login-info-text" class="text-xs text-slate-400 mb-6 uppercase font-bold tracking-widest">Identifíquese</p>
+            <form id="login-form" class="space-y-4">
+                <input type="password" id="l-pass" class="input-pro w-full text-center text-2xl tracking-widest" placeholder="····" required autofocus>
+                <button type="submit" class="btn-primary w-full">Ingresar</button>
+                <p id="login-error" class="text-red-500 text-xs font-bold hidden">Clave incorrecta</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-view" class="hidden flex flex-col md:flex-row flex-1">
+        
+        <!-- Sidebar -->
+        <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col no-print">
+            <div class="p-6 border-b border-slate-100">
+                <div class="flex flex-col gap-3">
+                    <div id="nav-logo-container" class="mb-1"></div>
+                    <div>
+                        <h3 id="nav-empresa" class="font-bold text-slate-800 leading-none text-sm">Empresa</h3>
+                        <p id="nav-user-name" class="text-[11px] font-semibold text-slate-500 mt-0.5">Encargado</p>
+                        <span class="text-[9px] text-blue-600 font-bold uppercase tracking-wider block mt-1">Acceso: <span id="nav-area-display" class="text-slate-800">Cargando...</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="changeTab('salidas')" id="btn-salidas" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-sign-out-alt w-5"></i> Salidas de Mercancía
+                </button>
+                <button onclick="changeTab('control')" id="btn-control" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-clipboard-check w-5"></i> Control de Surtimiento
+                </button>
+                <button onclick="changeTab('historial')" id="btn-historial" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-history w-5"></i> Historial por Cliente
+                </button>
+                <button onclick="changeTab('reportes')" id="btn-reportes" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-file-invoice w-5"></i> Resumen de Carga
+                </button>
+            </nav>
+
+            <div class="p-4 border-t border-slate-100 space-y-2">
+                <button onclick="shareLink()" class="w-full flex items-center gap-3 px-4 py-3 text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm font-semibold transition-colors">
+                    <i class="fas fa-share-nodes w-5"></i> Compartir Acceso
+                </button>
+                <button onclick="openProfileEdit()" id="sidebar-edit-profile" class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-600 text-sm font-semibold transition-colors">
+                    <i class="fas fa-cog w-5"></i> Configurar Accesos
+                </button>
+                <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-600 text-sm font-semibold transition-colors">
+                    <i class="fas fa-power-off w-5"></i> Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto bg-slate-50/50">
+            
+            <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center no-print">
+                <h2 id="view-title" class="text-lg font-bold text-slate-800 uppercase tracking-tight">Cargando...</h2>
+                <div class="text-right">
+                    <p id="header-date" class="text-xs font-medium text-slate-400"></p>
+                </div>
+            </header>
+
+            <div class="p-8">
+                <!-- VISTA: SALIDAS -->
+                <section id="view-salidas" class="tab-content hidden space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-1">
+                            <div class="card-pro p-6 shadow-soft">
+                                <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <i class="fas fa-plus-circle text-blue-500"></i> Nueva Orden de Salida
+                                </h3>
+                                <form id="salida-form" class="space-y-4">
+                                    <div>
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase">Cliente / Destino</label>
+                                        <input type="text" id="p-cliente" list="list-clientes" class="input-pro w-full mt-1" placeholder="Ej: Comercializadora SA" required>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="col-span-2">
+                                            <label class="text-[10px] font-bold text-slate-500 uppercase">Producto / SKU</label>
+                                            <input type="text" id="p-item" list="list-productos" class="input-pro w-full mt-1" placeholder="Ej: Caja de Aceite 1L" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase block">Cronograma de Entregas</label>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            <input type="date" id="p-fecha-input" class="input-pro text-xs py-2 px-2">
+                                            <input type="number" id="p-cant-input" class="input-pro text-xs py-2 px-2" placeholder="Kilos">
+                                        </div>
+                                        <button type="button" onclick="addScheduleEntry()" class="w-full bg-blue-600 text-white text-[10px] font-bold py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                            <i class="fas fa-plus mr-1"></i> AÑADIR FECHA Y KILOS
+                                        </button>
+                                        <div id="p-schedule-list" class="space-y-2 mt-3 max-h-40 overflow-y-auto"></div>
+                                    </div>
+
+                                    <div class="pt-2">
+                                        <div class="flex justify-between items-center mb-4 px-1">
+                                            <span class="text-[10px] font-bold text-slate-400 uppercase">Total Acumulado:</span>
+                                            <span id="p-total-calc" class="text-lg font-bold text-slate-800">0</span>
+                                        </div>
+                                        <button type="submit" class="btn-primary w-full shadow-lg shadow-blue-200">Registrar Salida Completa</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2">
+                            <div class="card-pro shadow-soft overflow-hidden">
+                                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                    <h3 class="text-xs font-bold text-slate-700 uppercase">Salidas Recientes</h3>
+                                    <span id="counter-salidas" class="bg-blue-100 text-blue-600 text-[10px] px-2 py-1 rounded-full font-bold">0 Pendientes</span>
+                                </div>
+                                <div id="lista-salidas-hoy" class="divide-y divide-slate-100"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VISTA: CONTROL SURTIMIENTO -->
+                <section id="view-control" class="tab-content hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="grid-surtimiento"></div>
+                </section>
+
+                <!-- VISTA: HISTORIAL -->
+                <section id="view-historial" class="tab-content hidden space-y-6">
+                    <div class="card-pro p-6 shadow-soft">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="flex-1">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Filtrar por Cliente / Destino</label>
+                                <select id="h-select-cliente" onchange="renderHistorial()" class="input-pro w-full font-semibold text-slate-700">
+                                    <option value="">Seleccionar Cliente...</option>
+                                </select>
+                            </div>
+                            <div class="w-full md:w-64">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Totales Surtidos</label>
+                                <div id="h-total-units" class="text-2xl font-bold text-blue-600 p-2">0 kilos</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-pro shadow-soft overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-6 py-4">Fecha de Surtimiento</th>
+                                        <th class="px-6 py-4">ID Orden</th>
+                                        <th class="px-6 py-4">Mercancía</th>
+                                        <th class="px-6 py-4 text-center">Kilos</th>
+                                        <th class="px-6 py-4">Estado</th>
+                                        <th class="px-6 py-4">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="h-table-body" class="text-sm divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VISTA: REPORTES -->
+                <section id="view-reportes" class="tab-content hidden space-y-8">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-slate-500 uppercase">Analítica Operativa</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="card-pro p-6 bg-white shadow-soft text-center">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Total Movimientos</p>
+                            <h4 id="rep-mov" class="text-3xl font-bold text-slate-800 mt-1">0</h4>
+                        </div>
+                        <div class="card-pro p-6 bg-white shadow-soft text-center">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Kilos Despachados</p>
+                            <h4 id="rep-uni" class="text-3xl font-bold text-blue-600 mt-1">0</h4>
+                        </div>
+                        <div class="card-pro p-6 bg-white shadow-soft text-center">
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">Surtimiento Completo</p>
+                            <h4 id="rep-eff" class="text-3xl font-bold text-emerald-600 mt-1">0%</h4>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="card-pro p-8 shadow-soft flex flex-col justify-center items-center">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase mb-6 w-full text-left">Volumen de Salidas Mensual (kg)</h4>
+                            <div class="text-center py-6">
+                                <p id="rep-month-name" class="text-sm font-bold text-blue-600 uppercase tracking-widest mb-2"></p>
+                                <h5 id="rep-month-qty" class="text-5xl font-black text-slate-800 tracking-tight">0 kg</h5>
+                                <p class="text-[10px] text-slate-400 mt-4 uppercase font-bold">Acumulado del mes actual</p>
+                            </div>
+                        </div>
+                        
+                        <div class="card-pro p-8 shadow-soft">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase mb-6">Top Clientes / Destinos</h4>
+                            <div class="h-[200px]">
+                                <canvas id="chartClientes"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let config = JSON.parse(localStorage.getItem('LOG_CONFIG')) || null;
+        let logs = JSON.parse(localStorage.getItem('LOG_DATA')) || [];
+        let activeChart1 = null;
+        let currentSchedule = []; 
+        let currentSessionUser = null; 
+
+        window.onload = () => {
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+            }
+
+            // Si hay una configuración previa, vamos directo al Login
+            if (!config) {
+                document.getElementById('setup-view').classList.remove('hidden');
+                addKeyRow();
+                notify("Bienvenido. Configure el perfil maestro.", "info");
+            } else {
+                renderLogin();
+            }
+            updateClock();
+            updateDatalists();
+            setInterval(updateClock, 60000);
+        };
+
+        function desktopNotify(title, body) {
+            if ("Notification" in window && Notification.permission === "granted") {
+                new Notification(title, {
+                    body: body,
+                    icon: config?.logo || 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/svgs/solid/warehouse.svg'
+                });
+            }
+        }
+
+        function notify(message, type = 'success') {
+            const container = document.getElementById('notification-container');
+            const toast = document.createElement('div');
+            let bg, icon;
+            switch(type) {
+                case 'error': bg = 'bg-red-500'; icon = 'fa-exclamation-circle'; break;
+                case 'info': bg = 'bg-blue-500'; icon = 'fa-info-circle'; break;
+                case 'warning': bg = 'bg-amber-500'; icon = 'fa-exclamation-triangle'; break;
+                default: bg = 'bg-emerald-500'; icon = 'fa-check-circle'; break;
+            }
+            toast.className = `toast ${bg} text-white px-6 py-4 rounded-xl shadow-2xl mb-3 flex items-center gap-3`;
+            toast.innerHTML = `<i class="fas ${icon} text-lg"></i><div><p class="text-sm font-bold">${message}</p></div>`;
+            container.appendChild(toast);
+            
+            if(type === 'success' || type === 'error') {
+                desktopNotify(config?.empresa || "LogisticsOS", message);
+            }
+
+            setTimeout(() => { 
+                toast.style.animation = 'fadeOut 0.5s ease-out forwards'; 
+                setTimeout(() => toast.remove(), 500); 
+            }, 3500);
+        }
+
+        function updateDatalists() {
+            const listClientes = document.getElementById('list-clientes');
+            const listProductos = document.getElementById('list-productos');
+            const clientes = [...new Set(logs.map(l => l.cliente))];
+            const productos = [...new Set(logs.map(l => l.item))];
+            listClientes.innerHTML = clientes.map(c => `<option value="${c}">`).join('');
+            listProductos.innerHTML = productos.map(p => `<option value="${p}">`).join('');
+        }
+
+        function addKeyRow(area = '', pass = '') {
+            const container = document.getElementById('keys-container');
+            const row = document.createElement('div');
+            row.className = "key-row flex gap-2 items-center";
+            row.innerHTML = `
+                <input type="text" class="area-name input-pro flex-1 text-[10px] py-2" placeholder="Área (Ej: Almacén)" value="${area}">
+                <input type="password" class="area-pass input-pro flex-1 text-[10px] py-2" placeholder="Clave" value="${pass}">
+                <button type="button" onclick="this.parentElement.remove()" class="text-slate-300 hover:text-red-500 transition px-2">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        function openProfileEdit() {
+            if(currentSessionUser !== config.encargado) {
+                notify("Solo el Encargado Master puede modificar los accesos.", "error");
+                return;
+            }
+            const view = document.getElementById('setup-view');
+            document.getElementById('setup-title').innerText = "Configuración de Accesos";
+            document.getElementById('close-setup').classList.remove('hidden');
+            document.getElementById('s-empresa').value = config.empresa;
+            document.getElementById('s-encargado').value = config.encargado;
+            document.getElementById('s-pass').value = config.pass;
+            const container = document.getElementById('keys-container');
+            container.innerHTML = "";
+            if(config.extraKeys && config.extraKeys.length > 0) {
+                config.extraKeys.forEach(k => addKeyRow(k.area, k.pass));
+            } else {
+                addKeyRow();
+            }
+            if(config.logo) {
+                document.getElementById('setup-logo-placeholder').innerHTML = `<img src="${config.logo}" class="w-full h-full object-cover">`;
+            }
+            view.classList.remove('hidden');
+        }
+
+        function closeProfileEdit() {
+            document.getElementById('setup-view').classList.add('hidden');
+        }
+
+        document.getElementById('setup-form').onsubmit = (e) => {
+            e.preventDefault();
+            const logoFile = document.getElementById('s-logo').files[0];
+            const extraKeys = [];
+            document.querySelectorAll('.key-row').forEach(row => {
+                const area = row.querySelector('.area-name').value;
+                const pass = row.querySelector('.area-pass').value;
+                if(area && pass) extraKeys.push({ area, pass });
+            });
+            const reader = new FileReader();
+            const saveConfig = (logoBase64 = null) => {
+                const isNew = !config;
+                config = {
+                    empresa: document.getElementById('s-empresa').value,
+                    encargado: document.getElementById('s-encargado').value,
+                    pass: document.getElementById('s-pass').value,
+                    logo: logoBase64 || (config ? config.logo : null),
+                    extraKeys: extraKeys
+                };
+                localStorage.setItem('LOG_CONFIG', JSON.stringify(config));
+                if(isNew) {
+                    location.reload();
+                } else {
+                    notify("Configuración actualizada");
+                    document.getElementById('nav-empresa').innerText = config.empresa;
+                    document.getElementById('nav-user-name').innerText = config.encargado;
+                    closeProfileEdit();
+                }
+            };
+            if (logoFile) {
+                reader.onload = (event) => saveConfig(event.target.result);
+                reader.readAsDataURL(logoFile);
+            } else {
+                saveConfig();
+            }
+        };
+
+        function renderLogin() {
+            document.getElementById('main-view').classList.add('hidden');
+            document.getElementById('setup-view').classList.add('hidden'); // Asegura que no se vea el registro
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-empresa-name').innerText = config.empresa;
+            if(config.logo) {
+                document.getElementById('login-logo-container').innerHTML = `<img src="${config.logo}" id="logo-preview-img" alt="logo">`;
+            }
+            document.getElementById('l-pass').value = '';
+            document.getElementById('l-pass').focus();
+        }
+
+        document.getElementById('login-form').onsubmit = (e) => {
+            e.preventDefault();
+            const inputPass = document.getElementById('l-pass').value;
+            if (inputPass === config.pass) {
+                currentSessionUser = config.encargado;
+                enterApp("Master");
+                return;
+            }
+            const areaKey = config.extraKeys?.find(k => k.pass === inputPass);
+            if(areaKey) {
+                currentSessionUser = areaKey.area;
+                enterApp(areaKey.area);
+                return;
+            }
+            const err = document.getElementById('login-error');
+            err.classList.remove('hidden');
+            notify("Clave incorrecta", "error");
+            setTimeout(() => err.classList.add('hidden'), 2000);
+        };
+
+        function logout() {
+            currentSessionUser = null;
+            renderLogin();
+        }
+
+        function enterApp(areaName) {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('main-view').classList.remove('hidden');
+            document.getElementById('nav-empresa').innerText = config.empresa;
+            document.getElementById('nav-area-display').innerText = areaName;
+            document.getElementById('nav-user-name').innerText = currentSessionUser;
+            if(config.logo) {
+                document.getElementById('nav-logo-container').innerHTML = `<img src="${config.logo}" style="max-height: 40px; width: auto;" alt="logo">`;
+            }
+            if(areaName !== 'Master') {
+                document.getElementById('sidebar-edit-profile').classList.add('opacity-30', 'cursor-not-allowed');
+            } else {
+                document.getElementById('sidebar-edit-profile').classList.remove('opacity-30', 'cursor-not-allowed');
+            }
+            changeTab('salidas');
+        }
+
+        function updateClock() {
+            const el = document.getElementById('header-date');
+            if (el) el.innerText = new Date().toLocaleDateString('es-ES', { 
+                weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' 
+            });
+        }
+
+        // Helper para formatear fechas de YYYY-MM-DD a DD/MM/YYYY
+        function formatDisplayDate(dateStr) {
+            if (!dateStr || !dateStr.includes('-')) return dateStr;
+            const parts = dateStr.split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        // Función para compartir el enlace directo al inicio de sesión
+        function shareLink() {
+            const url = window.location.href.split('?')[0]; // Limpia parámetros si existen
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = url;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            notify("Enlace copiado. Compártelo para acceder al Login.");
+        }
+
+        function addScheduleEntry() {
+            const dateInput = document.getElementById('p-fecha-input');
+            const qtyInput = document.getElementById('p-cant-input');
+            const date = dateInput.value;
+            const qty = parseInt(qtyInput.value);
+            if (!date || isNaN(qty) || qty <= 0) {
+                notify("Datos inválidos", "warning");
+                return;
+            }
+            currentSchedule.push({ date, qty });
+            dateInput.value = ''; qtyInput.value = '';
+            renderSchedule();
+        }
+
+        function removeScheduleEntry(index) {
+            currentSchedule.splice(index, 1);
+            renderSchedule();
+        }
+
+        function renderSchedule() {
+            const list = document.getElementById('p-schedule-list');
+            const totalDisplay = document.getElementById('p-total-calc');
+            list.innerHTML = currentSchedule.map((entry, i) => `
+                <div class="date-qty-tag">
+                    <span class="font-bold text-blue-600">${formatDisplayDate(entry.date)}</span>
+                    <span class="bg-slate-100 px-2 py-0.5 rounded font-black text-slate-700">${entry.qty} kg</span>
+                    <button type="button" onclick="removeScheduleEntry(${i})" class="text-slate-300 hover:text-red-500 transition-colors">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                </div>
+            `).join('');
+            totalDisplay.innerText = currentSchedule.reduce((sum, item) => sum + item.qty, 0);
+        }
+
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-blue-50'));
+            document.getElementById('btn-' + tabId).classList.add('bg-blue-50');
+            document.getElementById('view-title').innerText = tabId.toUpperCase();
+            if(tabId === 'reportes') renderReportData();
+            render();
+        }
+
+        document.getElementById('salida-form').onsubmit = (e) => {
+            e.preventDefault();
+            if (currentSchedule.length === 0) {
+                notify("Agregue fechas al cronograma", "warning");
+                return;
+            }
+            const cliente = document.getElementById('p-cliente').value;
+            const item = document.getElementById('p-item').value;
+            
+            // SEPARAR PEDIDOS POR FECHA
+            currentSchedule.forEach(entry => {
+                const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+                const newLog = {
+                    id: orderId,
+                    cliente,
+                    item,
+                    surtimientoFecha: entry.date,
+                    surtimientoCant: entry.qty,
+                    cronograma: [entry],
+                    status: 'pendiente',
+                    fechaRegistro: new Date().toISOString(),
+                    registradoPor: currentSessionUser
+                };
+                logs.unshift(newLog);
+            });
+
+            saveData();
+            updateDatalists();
+            
+            document.getElementById('salida-form').reset();
+            currentSchedule = [];
+            renderSchedule();
+            notify(`Ordenes para ${cliente} registradas (desglosadas por fecha)`);
+            render();
+        };
+
+        function saveData() {
+            localStorage.setItem('LOG_DATA', JSON.stringify(logs));
+        }
+
+        function updateStatus(id, status) {
+            const index = logs.findIndex(l => l.id === id);
+            if (index !== -1) {
+                logs[index].status = status;
+                saveData();
+                render();
+                notify(`Entrega ${id} completada satisfactoriamente`);
+            }
+        }
+
+        function deleteOrder(id) {
+            if(confirm(`¿Deseas eliminar esta orden/entrega ${id}?`)) {
+                logs = logs.filter(l => l.id !== id);
+                saveData();
+                updateDatalists();
+                render();
+                notify("Registro eliminado", "warning");
+            }
+        }
+
+        function render() {
+            const hoyList = document.getElementById('lista-salidas-hoy');
+            const gridSurtimiento = document.getElementById('grid-surtimiento');
+            const hSelect = document.getElementById('h-select-cliente');
+            const counter = document.getElementById('counter-salidas');
+
+            const pendientesCount = logs.filter(l => l.status === 'pendiente').length;
+            counter.innerText = `${pendientesCount} Pendientes`;
+
+            hoyList.innerHTML = logs.slice(0, 10).map(l => `
+                <div class="px-6 py-4 flex items-center justify-between group">
+                    <div>
+                        <p class="text-xs font-bold text-slate-800">${l.cliente}</p>
+                        <p class="text-[10px] text-slate-400">${l.item} | <span class="text-blue-600 font-bold">${formatDisplayDate(l.surtimientoFecha) || 'N/A'}</span></p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span class="status-badge ${l.status === 'completado' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}">
+                            ${l.status}
+                        </span>
+                        <button onclick="deleteOrder('${l.id}')" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('') || '<p class="p-6 text-center text-slate-400 text-xs">Sin registros</p>';
+
+            gridSurtimiento.innerHTML = logs.filter(l => l.status === 'pendiente').map(l => `
+                <div class="card-pro p-5 shadow-soft border-l-4 border-blue-500">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <p class="text-[10px] font-black text-blue-600 uppercase mb-1">${l.id}</p>
+                            <h4 class="font-bold text-slate-800">${l.cliente}</h4>
+                            <p class="text-xs text-slate-500">${l.item}</p>
+                        </div>
+                        <i class="fas fa-box-open text-slate-200 text-2xl"></i>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-lg mb-4 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500">${formatDisplayDate(l.surtimientoFecha || l.cronograma?.[0]?.date)}</span>
+                        <span class="text-xl font-black text-slate-800">${l.surtimientoCant || l.cronograma?.[0]?.qty} kg</span>
+                    </div>
+                    <button onclick="updateStatus('${l.id}', 'completado')" class="w-full py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold hover:bg-emerald-600 transition-colors">
+                        CONFIRMAR SURTIMIENTO
+                    </button>
+                </div>
+            `).join('') || '<div class="col-span-full text-center py-20 text-slate-400">Sin pendientes</div>';
+
+            const clientesUnicos = [...new Set(logs.map(l => l.cliente))];
+            const currentVal = hSelect.value;
+            hSelect.innerHTML = '<option value="">Seleccionar Cliente...</option>' + 
+                clientesUnicos.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+
+            renderHistorial();
+        }
+
+        function renderHistorial() {
+            const hSelect = document.getElementById('h-select-cliente');
+            const hTable = document.getElementById('h-table-body');
+            const hTotal = document.getElementById('h-total-units');
+            const filter = hSelect.value;
+            const filteredLogs = filter ? logs.filter(l => l.cliente === filter) : logs;
+            let totalKilos = 0;
+            
+            hTable.innerHTML = filteredLogs.map(l => {
+                const qty = l.surtimientoCant || l.cronograma?.[0]?.qty || 0;
+                const date = formatDisplayDate(l.surtimientoFecha || l.cronograma?.[0]?.date) || 'N/A';
+                if(l.status === 'completado') totalKilos += qty;
+                return `
+                <tr>
+                    <td class="px-6 py-4 font-bold text-blue-600">${date}</td>
+                    <td class="px-6 py-4 font-mono text-[10px] font-bold text-slate-400">${l.id}</td>
+                    <td class="px-6 py-4 font-bold text-slate-700">${l.item}</td>
+                    <td class="px-6 py-4 text-center font-black">${qty} kg</td>
+                    <td class="px-6 py-4"><span class="status-badge ${l.status === 'completado' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}">${l.status}</span></td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="deleteOrder('${l.id}')" class="text-slate-300 hover:text-red-500"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `}).join('') || '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">Sin datos</td></tr>';
+            hTotal.innerText = `${totalKilos} kg`;
+        }
+
+        function renderReportData() {
+            const totalMov = logs.length;
+            const totalKilos = logs.filter(l => l.status === 'completado').reduce((acc, l) => acc + (l.surtimientoCant || l.cronograma?.[0]?.qty || 0), 0);
+            const efficiency = totalMov > 0 ? Math.round((logs.filter(l => l.status === 'completado').length / totalMov) * 100) : 0;
+            document.getElementById('rep-mov').innerText = totalMov;
+            document.getElementById('rep-uni').innerText = `${totalKilos} kg`;
+            document.getElementById('rep-eff').innerText = `${efficiency}%`;
+            const now = new Date();
+            const currentMonthIndex = now.getMonth();
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            let kilosMesActual = 0;
+            logs.forEach(l => {
+                if (l.status === 'completado') {
+                    const regDate = new Date(l.fechaRegistro);
+                    if (regDate.getMonth() === currentMonthIndex && regDate.getFullYear() === now.getFullYear()) {
+                        kilosMesActual += (l.surtimientoCant || l.cronograma?.[0]?.qty || 0);
+                    }
+                }
+            });
+            document.getElementById('rep-month-name').innerText = `${monthNames[currentMonthIndex]} ${now.getFullYear()}`;
+            document.getElementById('rep-month-qty').innerText = `${kilosMesActual} kg`;
+            const clienteMap = {};
+            logs.forEach(l => {
+                const vol = (l.surtimientoCant || l.cronograma?.[0]?.qty || 0);
+                clienteMap[l.cliente] = (clienteMap[l.cliente] || 0) + vol;
+            });
+            const topClientes = Object.entries(clienteMap).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            if(activeChart1) activeChart1.destroy();
+            const ctx1 = document.getElementById('chartClientes').getContext('2d');
+            activeChart1 = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: topClientes.map(c => c[0]),
+                    datasets: [{
+                        data: topClientes.map(c => c[1]),
+                        backgroundColor: ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
