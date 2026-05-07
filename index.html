@@ -192,7 +192,7 @@
             <h2 id="login-empresa-name" class="text-xl font-bold text-slate-800">Acceso al Sistema</h2>
             <p id="login-info-text" class="text-xs text-slate-400 mb-6 uppercase font-bold tracking-widest">Identifíquese</p>
             <form id="login-form" class="space-y-4">
-                <input type="password" id="l-pass" class="input-pro w-full text-center text-2xl tracking-widest" placeholder="····" required autofocus>
+                <input type="password" id="l-pass" class="input-pro w-full text-center text-2xl tracking-widest" placeholder="····" required>
                 <button type="submit" class="btn-primary w-full">Ingresar</button>
                 <p id="login-error" class="text-red-500 text-xs font-bold hidden">Clave incorrecta</p>
             </form>
@@ -231,9 +231,6 @@
             </nav>
 
             <div class="p-4 border-t border-slate-100 space-y-2">
-                <button onclick="shareLink()" class="w-full flex items-center gap-3 px-4 py-3 text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm font-semibold transition-colors">
-                    <i class="fas fa-share-nodes w-5"></i> Compartir Acceso
-                </button>
                 <button onclick="openProfileEdit()" id="sidebar-edit-profile" class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-600 text-sm font-semibold transition-colors">
                     <i class="fas fa-cog w-5"></i> Configurar Accesos
                 </button>
@@ -270,7 +267,7 @@
                                     <div class="grid grid-cols-2 gap-4">
                                         <div class="col-span-2">
                                             <label class="text-[10px] font-bold text-slate-500 uppercase">Producto / SKU</label>
-                                            <input type="text" id="p-item" list="list-productos" class="input-pro w-full mt-1" placeholder="Ej: Caja de Aceite 1L" required>
+                                            <input type="text" id="p-item" list="list-productos" class="input-pro w-full mt-1" placeholder="Ej: Ep chicharras" required>
                                         </div>
                                     </div>
                                     
@@ -404,14 +401,12 @@
                 }
             }
 
-            // CORRECCIÓN: Si hay configuración, forzar renderLogin e ignorar cualquier rastro de setup-view
-            if (config) {
-                document.getElementById('setup-view').classList.add('hidden');
-                renderLogin();
-            } else {
+            if (!config) {
                 document.getElementById('setup-view').classList.remove('hidden');
                 addKeyRow();
                 notify("Bienvenido. Configure el perfil maestro.", "info");
+            } else {
+                renderLogin();
             }
             updateClock();
             updateDatalists();
@@ -541,14 +536,12 @@
 
         function renderLogin() {
             document.getElementById('main-view').classList.add('hidden');
-            document.getElementById('setup-view').classList.add('hidden');
             document.getElementById('login-view').classList.remove('hidden');
             document.getElementById('login-empresa-name').innerText = config.empresa;
             if(config.logo) {
                 document.getElementById('login-logo-container').innerHTML = `<img src="${config.logo}" id="logo-preview-img" alt="logo">`;
             }
             document.getElementById('l-pass').value = '';
-            document.getElementById('l-pass').focus();
         }
 
         document.getElementById('login-form').onsubmit = (e) => {
@@ -600,21 +593,11 @@
             });
         }
 
+        // Helper para formatear fechas de YYYY-MM-DD a DD/MM/YYYY
         function formatDisplayDate(dateStr) {
             if (!dateStr || !dateStr.includes('-')) return dateStr;
             const parts = dateStr.split('-');
             return `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-
-        function shareLink() {
-            const url = window.location.href.split('?')[0];
-            const dummy = document.createElement('input');
-            document.body.appendChild(dummy);
-            dummy.value = url;
-            dummy.select();
-            document.execCommand('copy');
-            document.body.removeChild(dummy);
-            notify("Enlace copiado. Lleva directamente al inicio de sesión.");
         }
 
         function addScheduleEntry() {
@@ -670,6 +653,7 @@
             const cliente = document.getElementById('p-cliente').value;
             const item = document.getElementById('p-item').value;
             
+            // SEPARAR PEDIDOS POR FECHA
             currentSchedule.forEach(entry => {
                 const orderId = 'ORD-' + Math.random().toString(36).substr(2, 6).toUpperCase();
                 const newLog = {
@@ -844,5 +828,35 @@
             });
         }
     </script>
+<!-- Monitor de Atrasos Críticos -->
+<div class="glass-panel p-6 rounded-2xl shadow-sm border-l-4 border-l-red-600 mt-6">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h3 class="text-lg font-semibold text-slate-800">Alertas de Surtimiento</h3>
+            <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest">Detección de Fechas Vencidas</p>
+        </div>
+        <span id="badge-critico" class="hidden px-2 py-1 bg-red-600 text-white text-[9px] font-black rounded-full animate-bounce">CRÍTICO</span>
+    </div>
+
+    <!-- Resumen de Impacto -->
+    <div class="bg-slate-50 p-4 rounded-xl mb-6 border border-red-100">
+        <div class="flex justify-between items-end">
+            <div>
+                <span class="block text-[10px] text-slate-500 uppercase font-bold">Mora Vencida Total</span>
+                <span id="mora-vencida-total" class="text-2xl font-black text-red-600">0 kg</span>
+            </div>
+            <div class="text-right">
+                <span id="ordenes-vencidas" class="text-lg font-bold text-slate-800">0</span>
+                <span class="block text-[10px] text-slate-400 uppercase">Órdenes fuera de tiempo</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Meses con Atraso Real -->
+    <div id="lista-atrasos-nuevos" class="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+        <!-- Generación dinámica -->
+    </div>
+</div>
+
 </body>
 </html>
