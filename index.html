@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LogisticsOS | Control de Surtimiento</title>
+    <title>LogisticsOS | Control de Surtimiento Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         
         :root {
             --primary: #2563eb;
@@ -23,6 +23,7 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             transition: all 0.3s ease;
+            overflow-x: hidden;
         }
 
         .shadow-soft {
@@ -33,6 +34,7 @@
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
         .input-pro {
@@ -57,6 +59,11 @@
             font-weight: 600;
             transition: all 0.2s;
             cursor: pointer;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .btn-primary:hover {
@@ -64,53 +71,32 @@
             transform: translateY(-1px);
         }
 
-        #notification-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            pointer-events: none;
-        }
-
-        .toast {
-            pointer-events: auto;
-            animation: slideIn 0.3s ease-out forwards;
-            min-width: 280px;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        @keyframes fadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+            cursor: pointer;
         }
 
         .status-badge {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             padding: 0.25rem 0.6rem;
             border-radius: 99px;
             font-weight: 700;
             text-transform: uppercase;
         }
 
-        .no-print {
-            @media print { display: none; }
-        }
-
-        #logo-preview-img {
-            max-width: 120px;
-            max-height: 60px;
-            object-fit: contain;
-        }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-done { background: #dcfce7; color: #166534; }
 
         .date-qty-tag {
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            padding: 4px 10px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 10px;
             font-size: 11px;
             display: flex;
             align-items: center;
@@ -119,270 +105,340 @@
             width: 100%;
         }
 
-        .hidden { display: none !important; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-        /* Custom scrollbar */
+        .animate-fade { animation: fadeIn 0.3s ease-out forwards; }
+        
+        .tab-btn.active {
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-left: 4px solid #2563eb;
+        }
+
+        .notification {
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #2563eb;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            pointer-events: auto;
+            min-width: 300px;
+        }
+
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <div id="notification-container"></div>
+    <div id="notification-container" class="fixed top-5 right-5 z-[9999] pointer-events-none space-y-3"></div>
 
-    <!-- DATALISTS -->
-    <datalist id="list-clientes"></datalist>
-    <datalist id="list-productos"></datalist>
+    <div id="custom-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div id="modal-icon" class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-2xl"></i>
+            </div>
+            <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-2">¿Estás seguro?</h3>
+            <p id="modal-text" class="text-slate-500 text-sm mb-8">Esta acción no se puede deshacer.</p>
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="btn-secondary flex-1">Cancelar</button>
+                <button id="modal-confirm-btn" class="btn-primary bg-red-600 hover:bg-red-700 flex-1">Confirmar</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- CONFIGURACIÓN INICIAL -->
-    <div id="setup-view" class="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 hidden">
-        <div class="card-pro p-10 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-start mb-6">
-                <div class="text-center flex-1">
-                    <div id="setup-logo-placeholder" class="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-white shadow-lg">
-                        <i class="fas fa-warehouse text-white text-3xl"></i>
-                    </div>
-                    <h1 id="setup-title" class="text-2xl font-bold text-slate-800">Configuración LogisticsOS</h1>
+    <div id="setup-view" class="fixed inset-0 z-[300] bg-slate-900 flex items-center justify-center p-4 hidden">
+        <div class="card-pro p-10 max-w-2xl w-full shadow-2xl overflow-y-auto max-h-[90vh] animate-fade">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-cog text-white text-3xl"></i>
                 </div>
-                <button id="close-setup" onclick="closeProfileEdit()" class="text-slate-400 hover:text-slate-600 hidden">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+                <h1 class="text-2xl font-bold text-slate-800">Configuración de Sistema</h1>
+                <p class="text-slate-500 text-sm">Personalice su centro de mando logístico</p>
             </div>
             <form id="setup-form" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div class="space-y-4">
-                        <h3 class="text-xs font-black text-blue-600 uppercase tracking-widest">General</h3>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Logotipo</label>
-                            <input type="file" id="s-logo" accept="image/*" class="text-xs w-full bg-slate-50 p-2 rounded-lg border border-dashed border-slate-300">
+                        <label class="block text-xs font-bold text-slate-500 uppercase">Logotipo (URL o File)</label>
+                        <div class="flex items-center gap-4">
+                            <div id="logo-preview-container" class="w-20 h-20 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                                <i class="fas fa-image text-slate-300 text-2xl"></i>
+                            </div>
+                            <input type="file" id="s-logo-input" accept="image/*" class="hidden">
+                            <button type="button" onclick="document.getElementById('s-logo-input').click()" class="btn-secondary text-xs py-2 px-3">Subir Logo</button>
                         </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Empresa</label>
-                            <input type="text" id="s-empresa" class="input-pro w-full" placeholder="Nombre de la empresa" required>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Encargado Master</label>
-                            <input type="text" id="s-encargado" class="input-pro w-full" placeholder="Nombre completo" required>
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-600 uppercase mb-1 block">Clave Master</label>
-                            <input type="password" id="s-pass" class="input-pro w-full" placeholder="Clave principal" required>
-                        </div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mt-4">Nombre de la Empresa</label>
+                        <input type="text" id="s-empresa" class="input-pro w-full" placeholder="Ej. Logística Global S.A." required>
                     </div>
-                    
-                    <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <h3 class="text-xs font-black text-amber-600 uppercase tracking-widest">Accesos por Áreas</h3>
-                        <p class="text-[10px] text-slate-500">Define claves para que otras áreas (ej. Almacén, Ventas) puedan operar.</p>
-                        <div id="keys-container" class="space-y-3"></div>
-                        <button type="button" onclick="addKeyRow()" class="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 hover:text-blue-500 hover:border-blue-300 transition text-[10px] font-bold">
-                            <i class="fas fa-plus mr-1"></i> AGREGAR ÁREA
-                        </button>
+                    <div class="space-y-4">
+                        <label class="block text-xs font-bold text-slate-500 uppercase">Encargado Master</label>
+                        <input type="text" id="s-encargado" class="input-pro w-full" placeholder="Nombre completo" required>
+                        <label class="block text-xs font-bold text-slate-500 uppercase">Establecer PIN Master</label>
+                        <input type="password" id="s-pass" class="input-pro w-full" placeholder="****" required>
                     </div>
                 </div>
-                <button type="submit" class="btn-primary w-full shadow-lg shadow-blue-200 mt-4">Guardar y Finalizar</button>
+                <button type="submit" class="btn-primary w-full shadow-lg py-4">FINALIZAR CONFIGURACIÓN</button>
             </form>
         </div>
     </div>
 
-    <!-- LOGIN -->
-    <div id="login-view" class="fixed inset-0 z-[100] bg-slate-50 flex items-center justify-center p-4 hidden">
-        <div class="card-pro p-8 max-w-sm w-full shadow-xl text-center">
-            <div id="login-logo-container" class="mb-4 flex justify-center"></div>
-            <h2 id="login-empresa-name" class="text-xl font-bold text-slate-800">Acceso al Sistema</h2>
-            <p id="login-info-text" class="text-xs text-slate-400 mb-6 uppercase font-bold tracking-widest">Ingrese su Clave</p>
-            <form id="login-form" class="space-y-4">
-                <input type="password" id="l-pass" class="input-pro w-full text-center text-2xl tracking-widest" placeholder="····" required autofocus>
-                <button type="submit" class="btn-primary w-full">Ingresar</button>
-            </form>
+    <div id="login-view" class="fixed inset-0 z-[250] bg-slate-100 flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full text-center space-y-8 animate-fade">
+            <div id="login-logo-display" class="mx-auto w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center p-4 overflow-hidden border border-slate-200">
+                <i class="fas fa-truck text-4xl text-blue-600"></i>
+            </div>
+            <div class="bg-white/95 backdrop-blur p-8 rounded-3xl shadow-2xl border border-white">
+                <h2 id="login-company-name" class="text-2xl font-black text-slate-800 mb-2">LogisticsOS</h2>
+                <p class="text-slate-500 text-sm mb-8">Bienvenido de nuevo, ingrese su PIN</p>
+                <form id="login-form" class="space-y-4">
+                    <input type="password" id="l-pass" class="input-pro w-full text-center text-2xl tracking-[0.5em]" placeholder="****" required maxlength="8">
+                    <button type="submit" class="btn-primary w-full py-4 text-lg">ENTRAR AL SISTEMA</button>
+                </form>
+            </div>
+            <button onclick="requestResetApp()" class="text-slate-400 text-xs hover:text-red-500 transition-colors uppercase font-bold tracking-widest">Reconfigurar Sistema</button>
         </div>
     </div>
 
-    <!-- MAIN APP -->
-    <div id="main-view" class="hidden flex flex-col md:flex-row flex-1 overflow-hidden">
-        <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col no-print shrink-0">
-            <div class="p-6 border-b border-slate-100">
-                <div class="flex flex-col gap-3">
-                    <div id="nav-logo-container" class="mb-1"></div>
-                    <div>
-                        <h3 id="nav-empresa" class="font-bold text-slate-800 leading-none text-sm">Empresa</h3>
-                        <p id="nav-user-name" class="text-[11px] font-semibold text-slate-500 mt-0.5">Encargado</p>
-                        <span class="text-[9px] text-blue-600 font-bold uppercase tracking-wider block mt-1">Acceso: <span id="nav-area-display" class="text-slate-800">...</span></span>
-                    </div>
+    <div id="main-view" class="hidden flex flex-col md:flex-row flex-1 overflow-hidden h-screen">
+        <aside class="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
+            <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+                <div id="nav-logo-container" class="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center overflow-hidden border border-slate-100">
+                    <i class="fas fa-cube text-blue-600"></i>
+                </div>
+                <div>
+                    <h3 id="nav-empresa" class="font-bold text-slate-800 text-sm leading-tight truncate w-32">Cargando...</h3>
+                    <p class="text-[10px] font-bold text-blue-600 uppercase">Logistics Manager</p>
                 </div>
             </div>
 
             <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-                <button onclick="changeTab('salidas')" id="btn-salidas" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
-                    <i class="fas fa-sign-out-alt w-5"></i> Salidas de Mercancía
+                <button onclick="changeTab('salidas')" id="btn-salidas" class="tab-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-plus-circle w-5 text-blue-500"></i> Nueva Orden
                 </button>
-                <button onclick="changeTab('control')" id="btn-control" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
-                    <i class="fas fa-clipboard-check w-5"></i> Control Surtimiento
+                <button onclick="changeTab('control')" id="btn-control" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-truck-loading w-5 text-emerald-500"></i> Control Surtimiento
                 </button>
-                <button onclick="changeTab('historial')" id="btn-historial" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
-                    <i class="fas fa-history w-5"></i> Historial Clientes
+                <button onclick="changeTab('historial')" id="btn-historial" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-file-invoice w-5 text-amber-500"></i> Historial Real
                 </button>
-                <button onclick="changeTab('reportes')" id="btn-reportes" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
-                    <i class="fas fa-chart-line w-5"></i> Reportes
+                <button onclick="changeTab('reportes')" id="btn-reportes" class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all text-slate-600 hover:bg-slate-50">
+                    <i class="fas fa-chart-line w-5 text-purple-500"></i> Reportes
                 </button>
             </nav>
 
             <div class="p-4 border-t border-slate-100">
-                <button onclick="openProfileEdit()" id="btn-config-master" class="w-full flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-blue-600 text-sm font-semibold transition-colors">
-                    <i class="fas fa-cog w-5"></i> Configurar Accesos
-                </button>
-                <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-red-600 text-sm font-semibold transition-colors">
+                <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-slate-800 text-xs font-semibold transition-colors">
                     <i class="fas fa-power-off w-5"></i> Cerrar Sesión
                 </button>
             </div>
         </aside>
 
         <main class="flex-1 overflow-y-auto bg-slate-50/50 flex flex-col">
-            <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center no-print shrink-0">
-                <h2 id="view-title" class="text-lg font-bold text-slate-800 uppercase tracking-tight">Título</h2>
-                <p id="header-date" class="text-xs font-medium text-slate-400"></p>
+            <header class="bg-white border-b border-slate-200 px-8 py-4 flex justify-between items-center shrink-0">
+                <h2 id="view-title" class="text-lg font-bold text-slate-800 uppercase tracking-tight">Crear Orden</h2>
+                <div id="header-date" class="text-xs font-bold text-slate-500 uppercase bg-slate-100 px-3 py-1 rounded-full"></div>
             </header>
 
             <div class="p-8 flex-1">
-                <!-- VISTA: SALIDAS -->
-                <section id="view-salidas" class="tab-content hidden space-y-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <div class="lg:col-span-1">
-                            <div class="card-pro p-6 shadow-soft">
-                                <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <i class="fas fa-plus-circle text-blue-500"></i> Nueva Orden
-                                </h3>
-                                <form id="salida-form" class="space-y-4">
-                                    <div>
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase">Cliente / Destino</label>
-                                        <input type="text" id="p-cliente" list="list-clientes" class="input-pro w-full mt-1" required>
+                <section id="view-salidas" class="tab-content animate-fade">
+                    <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div class="card-pro p-8 shadow-soft space-y-6">
+                            <h3 class="text-sm font-bold text-slate-800 uppercase border-b pb-4">Detalles del Pedido</h3>
+                            <form id="salida-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="col-span-2">
+                                        <label class="text-[10px] font-bold text-slate-500 uppercase">Cliente</label>
+                                        <input type="text" id="p-cliente" class="input-pro w-full mt-1" placeholder="Ej. Distribuidora Central" required>
                                     </div>
-                                    <div>
+                                    <div class="col-span-2">
                                         <label class="text-[10px] font-bold text-slate-500 uppercase">Producto / SKU</label>
-                                        <input type="text" id="p-item" list="list-productos" class="input-pro w-full mt-1" required>
+                                        <input type="text" id="p-item" class="input-pro w-full mt-1" placeholder="Ej. Azúcar Bulto 50kg" required>
                                     </div>
-                                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
-                                        <label class="text-[10px] font-bold text-slate-500 uppercase block">Programar Entregas</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <input type="date" id="p-fecha-input" class="input-pro text-xs py-2 px-2">
-                                            <input type="number" id="p-cant-input" class="input-pro text-xs py-2 px-2" placeholder="Kilos">
-                                        </div>
-                                        <button type="button" onclick="addScheduleEntry()" class="w-full bg-blue-600 text-white text-[10px] font-bold py-2 rounded-md hover:bg-blue-700 transition">
-                                            AÑADIR FECHA
-                                        </button>
-                                        <div id="p-schedule-list" class="space-y-2 mt-3"></div>
-                                    </div>
-                                    <div class="flex justify-between items-center mb-4 pt-2">
-                                        <span class="text-[10px] font-bold text-slate-400 uppercase">Total Programado:</span>
-                                        <span id="p-total-calc" class="text-lg font-bold text-slate-800">0 kg</span>
-                                    </div>
-                                    <button type="submit" class="btn-primary w-full">Registrar Salida</button>
-                                </form>
-                            </div>
-                        </div>
-                        <div class="lg:col-span-2">
-                            <div class="card-pro shadow-soft overflow-hidden">
-                                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                    <h3 class="text-xs font-bold text-slate-700 uppercase">Últimos Movimientos</h3>
-                                    <span id="counter-salidas" class="bg-blue-100 text-blue-600 text-[10px] px-2 py-1 rounded-full font-bold">0</span>
                                 </div>
-                                <div id="lista-salidas-hoy" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto"></div>
+                                
+                                <div class="bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
+                                    <label class="text-[10px] font-bold text-blue-600 uppercase mb-3 block">Programación de Entregas</label>
+                                    <div class="flex gap-2 mb-4">
+                                        <input type="date" id="p-fecha-input" class="input-pro text-xs flex-1">
+                                        <input type="number" id="p-cant-input" class="input-pro text-xs w-24" placeholder="Cant.">
+                                        <button type="button" onclick="addScheduleEntry()" class="bg-blue-600 text-white w-10 h-10 rounded-lg flex items-center justify-center transition-transform active:scale-95">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="p-schedule-list" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+                                </div>
+
+                                <div class="flex justify-between items-center py-4 bg-slate-50 px-4 rounded-xl">
+                                    <span class="text-xs font-bold text-slate-400 uppercase">Total Programado:</span>
+                                    <span id="p-total-calc" class="text-xl font-black text-slate-800">0 kg</span>
+                                </div>
+                                <button type="submit" class="btn-primary w-full py-4 text-lg shadow-blue-200 shadow-lg">REGISTRAR ORDEN</button>
+                            </form>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div class="bg-slate-900 rounded-2xl p-8 text-white shadow-xl relative overflow-hidden h-full">
+                                <div class="relative z-10">
+                                    <i class="fas fa-shield-alt text-blue-400 text-4xl mb-4"></i>
+                                    <h4 class="text-xl font-bold mb-2">Control de Despacho</h4>
+                                    <p class="text-slate-400 text-sm leading-relaxed mb-6">
+                                        LogisticsOS calcula la diferencia entre lo programado y lo realmente retirado automáticamente para evitar discrepancias.
+                                    </p>
+                                    <ul class="space-y-3">
+                                        <li class="flex items-center gap-3 text-xs text-slate-300"><i class="fas fa-check-circle text-emerald-400"></i> Precisión en Inventarios</li>
+                                        <li class="flex items-center gap-3 text-xs text-slate-300"><i class="fas fa-check-circle text-emerald-400"></i> Historial de retiros reales</li>
+                                    </ul>
+                                </div>
+                                <div class="absolute -right-10 -bottom-10 text-slate-800 opacity-20 transform -rotate-12">
+                                    <i class="fas fa-truck-moving text-[12rem]"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- VISTA: CONTROL -->
-                <section id="view-control" class="tab-content hidden">
+                <section id="view-control" class="tab-content hidden animate-fade space-y-6">
+                    <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div class="relative w-full md:w-96">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="search-control" oninput="renderControl()" class="input-pro w-full pl-11" placeholder="Buscar por cliente o SKU...">
+                        </div>
+                        <div class="flex gap-2 bg-white p-1 rounded-xl border border-slate-200">
+                            <button onclick="setFilterStatus('TODOS')" id="f-todos" class="text-xs font-bold px-4 py-2 rounded-lg bg-blue-50 text-blue-600 transition-all">Todos</button>
+                            <button onclick="setFilterStatus('PENDIENTE')" id="f-pend" class="text-xs font-bold px-4 py-2 rounded-lg text-slate-500 hover:bg-slate-50">Pendientes</button>
+                            <button onclick="setFilterStatus('SURTIDO')" id="f-surt" class="text-xs font-bold px-4 py-2 rounded-lg text-slate-500 hover:bg-slate-50">Surtidos</button>
+                        </div>
+                    </div>
                     <div id="grid-surtimiento" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
                 </section>
 
-                <!-- VISTA: HISTORIAL -->
-                <section id="view-historial" class="tab-content hidden space-y-6">
-                    <div class="card-pro p-6 shadow-soft">
-                        <div class="flex flex-col md:flex-row gap-4 items-end">
-                            <div class="flex-1 w-full">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase">Filtrar Cliente</label>
-                                <select id="h-select-cliente" onchange="renderHistorial()" class="input-pro w-full mt-1"></select>
+                <section id="view-historial" class="tab-content hidden animate-fade space-y-6">
+                    <div class="card-pro p-6 shadow-soft flex flex-wrap gap-4 items-end">
+                        <div class="flex-1 min-w-[240px]">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Filtrar por Cliente</label>
+                            <select id="h-select-cliente" onchange="renderHistorial()" class="input-pro w-full mt-1">
+                                <option value="TODOS">Todos los clientes</option>
+                            </select>
+                        </div>
+                        <button onclick="exportToCSV()" class="btn-secondary flex items-center gap-2 h-[48px]">
+                            <i class="fas fa-file-csv text-emerald-600"></i> Exportar Datos
+                        </button>
+                        <div class="grid grid-cols-2 gap-4 w-full md:w-auto">
+                            <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 min-w-[140px]">
+                                <p class="text-[9px] font-bold text-blue-600 uppercase mb-1">Total Fijado</p>
+                                <div id="h-total-fijado" class="text-xl font-black text-blue-700">0 kg</div>
                             </div>
-                            <div class="w-full md:w-48 text-right bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase block">Total en Filtro</label>
-                                <div id="h-total-units" class="text-2xl font-bold text-blue-600">0 kg</div>
+                            <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100 min-w-[140px]">
+                                <p class="text-[9px] font-bold text-emerald-600 uppercase mb-1">Total Real</p>
+                                <div id="h-total-real" class="text-xl font-black text-emerald-700">0 kg</div>
                             </div>
                         </div>
                     </div>
-                    <div class="card-pro overflow-hidden overflow-x-auto">
-                        <table class="w-full text-left min-w-[700px]">
-                            <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-500">
-                                <tr>
-                                    <th class="px-6 py-3">Fecha</th>
-                                    <th class="px-6 py-3">Cliente</th>
-                                    <th class="px-6 py-3">Mercancía</th>
-                                    <th class="px-6 py-3">Kilos</th>
-                                    <th class="px-6 py-3">Estado</th>
-                                    <th class="px-6 py-3">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody id="h-table-body" class="text-sm divide-y divide-slate-100"></tbody>
-                        </table>
+                    <div class="card-pro overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase">
+                                    <tr>
+                                        <th class="px-6 py-4">Ref</th>
+                                        <th class="px-6 py-4">Cliente / Producto</th>
+                                        <th class="px-6 py-4 text-center">Fijado</th>
+                                        <th class="px-6 py-4 text-center">Real</th>
+                                        <th class="px-6 py-4 text-center">Dif.</th>
+                                        <th class="px-6 py-4 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="h-table-body" class="text-sm divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <!-- VISTA: REPORTES -->
-                <section id="view-reportes" class="tab-content hidden space-y-8">
-                    <!-- KPIs Superiores -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="card-pro p-6 text-center shadow-soft">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Movimientos Totales</p>
-                            <h4 id="rep-mov" class="text-3xl font-bold">0</h4>
+                <section id="view-reportes" class="tab-content hidden animate-fade space-y-8">
+                    <div class="card-pro p-4 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-800 uppercase">Explorador de Periodos</h3>
+                                <p class="text-[10px] text-slate-500 font-bold uppercase">Navega por el historial de meses y años</p>
+                            </div>
                         </div>
-                        <div class="card-pro p-6 text-center shadow-soft">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Total Despachado</p>
-                            <h4 id="rep-uni" class="text-3xl font-bold text-blue-600">0 kg</h4>
-                        </div>
-                        <div class="card-pro p-6 text-center shadow-soft">
-                            <p class="text-[10px] font-bold text-slate-400 uppercase">Efectividad Surtido</p>
-                            <h4 id="rep-eff" class="text-3xl font-bold text-emerald-600">0%</h4>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <select id="rep-select-month" onchange="renderReportes()" class="input-pro text-xs py-2 bg-slate-50">
+                                <option value="0">Enero</option>
+                                <option value="1">Febrero</option>
+                                <option value="2">Marzo</option>
+                                <option value="3">Abril</option>
+                                <option value="4">Mayo</option>
+                                <option value="5">Junio</option>
+                                <option value="6">Julio</option>
+                                <option value="7">Agosto</option>
+                                <option value="8">Septiembre</option>
+                                <option value="9">Octubre</option>
+                                <option value="10">Noviembre</option>
+                                <option value="11">Diciembre</option>
+                            </select>
+                            <select id="rep-select-year" onchange="renderReportes()" class="input-pro text-xs py-2 bg-slate-50"></select>
+                            <button onclick="setPeriodToCurrent()" class="btn-secondary text-[10px] py-2 px-3 flex items-center gap-1">
+                                <i class="fas fa-clock"></i> Mes Actual
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Volumen Principal vs Histórico -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="card-pro p-6 shadow-soft bg-white border-l-4 border-blue-500">
+                            <p class="text-xs font-bold text-slate-400 uppercase">Carga Programada</p>
+                            <h4 id="rep-fijado" class="text-3xl font-black text-slate-800">0 kg</h4>
+                        </div>
+                        <div class="card-pro p-6 shadow-soft bg-white border-l-4 border-emerald-500">
+                            <p class="text-xs font-bold text-emerald-500 uppercase">Surtido Real</p>
+                            <h4 id="rep-real" class="text-3xl font-black text-emerald-600">0 kg</h4>
+                            <p id="rep-eficiencia" class="text-[10px] font-bold text-emerald-500 mt-2">Eficiencia: 0%</p>
+                        </div>
+                        <div class="card-pro p-6 shadow-soft bg-white border-l-4 border-purple-600">
+                            <p class="text-xs font-bold text-purple-600 uppercase">Salida Periodo</p>
+                            <h4 id="rep-mes-actual" class="text-3xl font-black text-purple-700">0 kg</h4>
+                            <p id="rep-mes-label" class="text-[9px] font-bold text-purple-400 mt-2">Mes Seleccionado</p>
+                        </div>
+                        <div class="card-pro p-6 shadow-soft bg-white border-l-4 border-red-500">
+                            <p class="text-xs font-bold text-red-500 uppercase">Diferencia Total</p>
+                            <h4 id="rep-diff" class="text-3xl font-black text-red-600">0 kg</h4>
+                            <p id="rep-mes-deficiencia" class="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-full inline-block mt-2">Déficit: 0 kg</p>
+                        </div>
+                    </div>
+                    
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div class="flex flex-col gap-6">
-                            <!-- Volumen Mes Actual -->
-                            <div class="card-pro p-8 flex flex-col justify-center items-center bg-slate-900 text-white shadow-xl relative overflow-hidden">
-                                <div class="absolute top-0 right-0 p-4 opacity-10">
-                                    <i class="fas fa-calendar-check text-9xl"></i>
-                                </div>
-                                <h4 class="text-xs font-bold text-slate-400 uppercase mb-4 self-start">Volumen Mes Actual</h4>
-                                <p id="rep-month-name" class="text-sm font-bold text-blue-400 uppercase mb-2"></p>
-                                <h5 id="rep-month-qty" class="text-6xl font-black">0 <small class="text-lg">kg</small></h5>
-                                <p class="text-[10px] text-slate-500 mt-4 uppercase tracking-widest font-bold">Progreso del periodo en curso</p>
-                            </div>
-
-                            <!-- Volumen Mes Pasado (Persistente) -->
-                            <div class="card-pro p-6 bg-white border-l-4 border-blue-500 shadow-soft">
-                                <div class="flex justify-between items-center">
-                                    <div>
-                                        <h4 class="text-xs font-black text-slate-400 uppercase tracking-wider">Cierre Mes Anterior</h4>
-                                        <p id="rep-prev-month-name" class="text-sm font-bold text-slate-800 uppercase mt-1">CARGANDO...</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <h5 id="rep-prev-month-qty" class="text-2xl font-black text-slate-700">0 <small class="text-sm">kg</small></h5>
-                                        <span id="rep-growth-tag" class="text-[10px] font-bold px-2 py-0.5 rounded-full">--%</span>
-                                    </div>
-                                </div>
+                        <div class="card-pro p-8 bg-white">
+                            <h4 class="text-sm font-bold text-slate-800 uppercase mb-6 flex items-center gap-2">
+                                <i class="fas fa-chart-line text-purple-500"></i> Tendencia de Salida Mensual
+                            </h4>
+                            <div class="h-[300px] relative">
+                                <canvas id="chartMensual"></canvas>
                             </div>
                         </div>
-
-                        <!-- Gráfico de Distribución -->
-                        <div class="card-pro p-8 bg-white shadow-soft">
-                            <h4 class="text-xs font-bold text-slate-500 uppercase mb-4">Distribución por Clientes (kg)</h4>
-                            <div class="h-64">
-                                <canvas id="chartClientes"></canvas>
+                        <div class="card-pro p-8 bg-white">
+                            <h4 class="text-sm font-bold text-slate-800 uppercase mb-6 flex items-center gap-2">
+                                <i class="fas fa-chart-bar text-blue-500"></i> Desempeño por Cliente
+                            </h4>
+                            <div class="h-[300px] relative">
+                                <canvas id="chartEficiencia"></canvas>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="card-pro p-8 bg-white">
+                        <h4 class="text-sm font-bold text-slate-800 uppercase mb-6 flex items-center gap-2">
+                            <i class="fas fa-history text-purple-500"></i> Top Clientes por Volumen (Periodo)
+                        </h4>
+                        <div id="top-items-list" class="space-y-4"></div>
                     </div>
                 </section>
             </div>
@@ -390,453 +446,465 @@
     </div>
 
     <script>
-        // ESTADO GLOBAL
-        let config = JSON.parse(localStorage.getItem('LOG_CONFIG')) || null;
-        let logs = JSON.parse(localStorage.getItem('LOG_DATA')) || [];
+        let config = JSON.parse(localStorage.getItem('LOG_PRO_CONFIG')) || null;
+        let orders = JSON.parse(localStorage.getItem('LOG_PRO_ORDERS')) || [];
         let currentSchedule = [];
-        let currentSessionUser = null;
-        let currentSessionArea = null;
-        let activeChart = null;
+        let filterStatus = 'TODOS';
+        let charts = {
+            mensual: null,
+            eficiencia: null
+        };
+        let sessionLogo = config ? config.logo : null;
 
         window.onload = () => {
             if (!config) {
                 document.getElementById('setup-view').classList.remove('hidden');
-                addKeyRow();
             } else {
-                renderLogin();
+                showLogin();
             }
-            updateClock();
-            updateDatalists();
-            setInterval(updateClock, 60000);
+            updateHeaderDate();
+            initYearSelector();
+            setPeriodToCurrent();
+            
+            // Setup Logo Handler
+            document.getElementById('s-logo-input').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        sessionLogo = ev.target.result;
+                        document.getElementById('logo-preview-container').innerHTML = `<img src="${sessionLogo}" class="w-full h-full object-contain">`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         };
 
-        // UTILIDADES
-        function notify(msg, type = 'success') {
-            const container = document.getElementById('notification-container');
-            const toast = document.createElement('div');
-            const bg = type === 'error' ? 'bg-red-500' : 'bg-emerald-500';
-            toast.className = `toast ${bg} text-white px-6 py-4 rounded-xl shadow-2xl mb-3 flex items-center gap-3`;
-            toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'}"></i> <span>${msg}</span>`;
-            container.appendChild(toast);
-            setTimeout(() => { 
-                toast.style.animation = 'fadeOut 0.5s forwards'; 
-                setTimeout(() => toast.remove(), 500); 
-            }, 3000);
-        }
-
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('header-date').innerText = now.toLocaleString('es-ES', { 
-                weekday: 'long', 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        // CONFIGURACIÓN Y PERFILES
-        function addKeyRow(area = '', pass = '') {
-            const container = document.getElementById('keys-container');
-            const div = document.createElement('div');
-            div.className = "key-row flex gap-2";
-            div.innerHTML = `
-                <input type="text" class="area-name input-pro flex-1 text-[10px]" placeholder="Nombre Área" value="${area}">
-                <input type="password" class="area-pass input-pro flex-1 text-[10px]" placeholder="Clave de acceso" value="${pass}">
-                <button type="button" onclick="this.parentElement.remove()" class="text-slate-400 hover:text-red-500 px-1">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
-            container.appendChild(div);
-        }
-
-        function openProfileEdit() {
-            if (currentSessionArea !== "Master") {
-                notify("Acceso denegado. Solo el Encargado Master puede configurar.", "error");
-                return;
-            }
-            const setup = document.getElementById('setup-view');
-            setup.classList.remove('hidden');
-            document.getElementById('close-setup').classList.remove('hidden');
-            document.getElementById('setup-title').innerText = "Editar Perfil y Accesos";
-            
-            document.getElementById('s-empresa').value = config.empresa;
-            document.getElementById('s-encargado').value = config.encargado;
-            document.getElementById('s-pass').value = config.pass;
-            
-            const container = document.getElementById('keys-container');
-            container.innerHTML = "";
-            config.extraKeys.forEach(k => addKeyRow(k.area, k.pass));
-        }
-
-        function closeProfileEdit() {
-            document.getElementById('setup-view').classList.add('hidden');
-        }
-
+        // --- AUTH & SETUP ---
         document.getElementById('setup-form').onsubmit = (e) => {
             e.preventDefault();
-            const keys = [];
-            document.querySelectorAll('.key-row').forEach(r => {
-                const a = r.querySelector('.area-name').value;
-                const p = r.querySelector('.area-pass').value;
-                if(a && p) keys.push({area:a, pass:p});
-            });
-
-            const logoInput = document.getElementById('s-logo').files[0];
-            const save = (logoData = null) => {
-                config = {
-                    empresa: document.getElementById('s-empresa').value,
-                    encargado: document.getElementById('s-encargado').value,
-                    pass: document.getElementById('s-pass').value,
-                    logo: logoData || config?.logo,
-                    extraKeys: keys
-                };
-                localStorage.setItem('LOG_CONFIG', JSON.stringify(config));
-                location.reload();
+            config = {
+                empresa: document.getElementById('s-empresa').value,
+                encargado: document.getElementById('s-encargado').value,
+                pass: document.getElementById('s-pass').value,
+                logo: sessionLogo
             };
-
-            if(logoInput) {
-                const reader = new FileReader();
-                reader.onload = (ev) => save(ev.target.result);
-                reader.readAsDataURL(logoInput);
-            } else save();
+            localStorage.setItem('LOG_PRO_CONFIG', JSON.stringify(config));
+            notify("Configuración guardada con éxito", "success");
+            location.reload();
         };
-
-        // AUTENTICACIÓN
-        function renderLogin() {
-            document.getElementById('login-view').classList.remove('hidden');
-            document.getElementById('login-empresa-name').innerText = config.empresa;
-            if(config.logo) {
-                document.getElementById('login-logo-container').innerHTML = `<img src="${config.logo}" id="logo-preview-img">`;
-            }
-        }
 
         document.getElementById('login-form').onsubmit = (e) => {
             e.preventDefault();
-            const val = document.getElementById('l-pass').value;
-            if(val === config.pass) {
-                currentSessionUser = config.encargado;
-                currentSessionArea = "Master";
-                enterApp();
+            if (document.getElementById('l-pass').value === config.pass) {
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('main-view').classList.remove('hidden');
+                initApp();
             } else {
-                const ak = config.extraKeys.find(k => k.pass === val);
-                if(ak) { 
-                    currentSessionUser = ak.area; 
-                    currentSessionArea = ak.area;
-                    enterApp(); 
-                } else {
-                    notify("Clave incorrecta", "error");
-                    document.getElementById('l-pass').value = "";
-                }
+                notify("PIN incorrecto", "error");
             }
         };
 
-        function enterApp() {
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('main-view').classList.remove('hidden');
-            document.getElementById('nav-empresa').innerText = config.empresa;
-            document.getElementById('nav-user-name').innerText = config.encargado;
-            document.getElementById('nav-area-display').innerText = currentSessionArea;
-            
-            if(currentSessionArea !== "Master") {
-                document.getElementById('btn-config-master').classList.add('hidden');
+        function showLogin() {
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-company-name').textContent = config.empresa;
+            if (config.logo) {
+                document.getElementById('login-logo-display').innerHTML = `<img src="${config.logo}" class="w-full h-full object-contain">`;
             }
+        }
 
-            if(config.logo) {
-                document.getElementById('nav-logo-container').innerHTML = `<img src="${config.logo}" class="max-h-10">`;
+        function initApp() {
+            document.getElementById('nav-empresa').textContent = config.empresa;
+            if (config.logo) {
+                document.getElementById('nav-logo-container').innerHTML = `<img src="${config.logo}" class="w-full h-full object-contain">`;
             }
-            changeTab('salidas');
+            renderControl();
+            renderHistorial();
         }
 
-        function logout() { location.reload(); }
-
-        // NAVEGACIÓN Y TABS
-        function changeTab(tab) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-blue-50', 'text-blue-600'));
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-            document.getElementById(`btn-${tab}`).classList.add('bg-blue-50', 'text-blue-600');
-            document.getElementById('view-title').innerText = tab.replace('-', ' ');
-            
-            if(tab === 'salidas') renderSalidas();
-            if(tab === 'control') renderControl();
-            if(tab === 'historial') renderHistorial();
-            if(tab === 'reportes') renderReportes();
-        }
-
-        function updateDatalists() {
-            const cList = document.getElementById('list-clientes');
-            const pList = document.getElementById('list-productos');
-            const clies = [...new Set(logs.map(l => l.cliente))];
-            const prods = [...new Set(logs.map(l => l.item))];
-            cList.innerHTML = clies.map(c => `<option value="${c}">`).join('');
-            pList.innerHTML = prods.map(p => `<option value="${p}">`).join('');
-        }
-
-        // SALIDAS
         function addScheduleEntry() {
-            const d = document.getElementById('p-fecha-input').value;
-            const q = parseFloat(document.getElementById('p-cant-input').value);
-            if(!d || isNaN(q) || q <= 0) return notify("Ingresa una fecha y cantidad válida", "error");
+            const date = document.getElementById('p-fecha-input').value;
+            const qty = parseFloat(document.getElementById('p-cant-input').value);
             
-            currentSchedule.push({date: d, qty: q});
-            currentSchedule.sort((a,b) => new Date(a.date) - new Date(b.date));
-            renderSchedule();
-            
-            document.getElementById('p-fecha-input').value = "";
-            document.getElementById('p-cant-input').value = "";
+            if (!date || isNaN(qty) || qty <= 0) return notify("Ingrese fecha y cantidad válida", "error");
+
+            currentSchedule.push({ date, qty });
+            renderScheduleList();
+            document.getElementById('p-fecha-input').value = '';
+            document.getElementById('p-cant-input').value = '';
         }
 
-        function renderSchedule() {
-            const list = document.getElementById('p-schedule-list');
-            list.innerHTML = "";
-            let t = 0;
-            currentSchedule.forEach((s, i) => {
-                t += s.qty;
-                const row = document.createElement('div');
-                row.className = "date-qty-tag";
-                row.innerHTML = `
-                    <span class="font-medium">${s.date}</span> 
+        function renderScheduleList() {
+            const container = document.getElementById('p-schedule-list');
+            container.innerHTML = '';
+            let total = 0;
+            currentSchedule.forEach((item, index) => {
+                total += item.qty;
+                const div = document.createElement('div');
+                div.className = 'date-qty-tag animate-fade';
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i class="far fa-calendar-alt text-blue-500"></i>
+                        <span class="font-bold">${item.date}</span>
+                    </div>
                     <div class="flex items-center gap-3">
-                        <b class="text-blue-600">${s.qty} kg</b> 
-                        <button type="button" onclick="currentSchedule.splice(${i},1);renderSchedule()" class="text-red-400 hover:text-red-600">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <span class="bg-slate-100 px-2 py-1 rounded font-black text-slate-700">${item.qty} kg</span>
+                        <button type="button" onclick="removeSchedule(${index})" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
                     </div>
                 `;
-                list.appendChild(row);
+                container.appendChild(div);
             });
-            document.getElementById('p-total-calc').innerText = t.toFixed(2) + " kg";
+            document.getElementById('p-total-calc').textContent = `${total.toLocaleString()} kg`;
+        }
+
+        function removeSchedule(index) {
+            currentSchedule.splice(index, 1);
+            renderScheduleList();
         }
 
         document.getElementById('salida-form').onsubmit = (e) => {
             e.preventDefault();
-            if(currentSchedule.length === 0) return notify("Añade al menos una fecha de entrega", "error");
-            
-            const cliente = document.getElementById('p-cliente').value.trim();
-            const item = document.getElementById('p-item').value.trim();
-            
-            currentSchedule.forEach(s => {
-                logs.push({
-                    id: 'L-' + Math.random().toString(36).substr(2,6).toUpperCase(),
-                    cliente, 
-                    item, 
-                    fecha: s.date, 
-                    kilos: s.qty, 
-                    status: 'pendiente', 
-                    ts: Date.now()
+            if (currentSchedule.length === 0) return notify("Agregue al menos una entrega programada", "error");
+
+            const client = document.getElementById('p-cliente').value;
+            const item = document.getElementById('p-item').value;
+
+            currentSchedule.forEach(sch => {
+                orders.push({
+                    id: 'ORD-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                    client: client,
+                    product: item,
+                    date_planned: sch.date,
+                    qty_planned: sch.qty,
+                    qty_real: 0,
+                    status: 'PENDIENTE',
+                    date_actual: null,
+                    timestamp: Date.now()
                 });
             });
-            
-            localStorage.setItem('LOG_DATA', JSON.stringify(logs));
+
+            saveOrders();
             currentSchedule = [];
-            renderSchedule();
+            renderScheduleList();
             e.target.reset();
-            notify("Orden de salida registrada con éxito");
-            updateDatalists();
-            renderSalidas();
+            notify("Orden registrada exitosamente", "success");
+            changeTab('control');
         };
 
-        function renderSalidas() {
-            const list = document.getElementById('lista-salidas-hoy');
-            const recent = [...logs].sort((a,b) => b.ts - a.ts).slice(0, 20);
-            document.getElementById('counter-salidas').innerText = logs.length;
-            
-            if(recent.length === 0) {
-                list.innerHTML = '<p class="p-8 text-center text-slate-400 text-sm">No hay registros aún.</p>';
-                return;
-            }
-
-            list.innerHTML = recent.map(l => `
-                <div class="px-6 py-4 flex justify-between items-center bg-white hover:bg-slate-50 transition">
-                    <div>
-                        <p class="text-sm font-bold text-slate-800">${l.cliente}</p>
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">${l.item} • ${l.fecha}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-bold text-blue-600">${l.kilos} kg</p>
-                        <span class="status-badge ${l.status === 'surtido' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${l.status}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // CONTROL
         function renderControl() {
-            const grid = document.getElementById('grid-surtimiento');
-            const pends = logs.filter(l => l.status === 'pendiente').sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
-            
-            if(pends.length === 0) {
-                grid.innerHTML = '<div class="col-span-full p-20 text-center bg-white rounded-xl border border-dashed border-slate-300 text-slate-400">Todo el material ha sido surtido.</div>';
-                return;
-            }
+            const container = document.getElementById('grid-surtimiento');
+            const search = document.getElementById('search-control').value.toLowerCase();
+            container.innerHTML = '';
 
-            grid.innerHTML = pends.map(l => `
-                <div class="card-pro p-6 shadow-soft flex flex-col justify-between border-t-4 border-t-amber-400">
-                    <div>
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">${l.id}</span>
-                            <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded">PENDIENTE</span>
-                        </div>
-                        <h4 class="text-lg font-bold text-slate-800 leading-tight">${l.cliente}</h4>
-                        <p class="text-xs font-semibold text-slate-500 mt-1 uppercase">${l.item}</p>
-                        <div class="mt-4 flex items-center gap-2 text-slate-400">
-                            <i class="far fa-calendar-alt text-xs"></i>
-                            <span class="text-xs font-bold uppercase">${l.fecha}</span>
-                        </div>
+            const filtered = orders.filter(o => {
+                const matchSearch = o.client.toLowerCase().includes(search) || o.product.toLowerCase().includes(search);
+                const matchStatus = filterStatus === 'TODOS' || o.status === filterStatus;
+                return matchSearch && matchStatus;
+            }).sort((a, b) => new Date(a.date_planned) - new Date(b.date_planned));
+
+            filtered.forEach(o => {
+                const card = document.createElement('div');
+                card.className = 'card-pro p-6 shadow-soft animate-fade bg-white';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="status-badge ${o.status === 'PENDIENTE' ? 'badge-pending' : 'badge-done'}">${o.status}</span>
+                        <span class="text-[10px] font-bold text-slate-400">#${o.id}</span>
                     </div>
-                    <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                        <span class="text-xl font-black text-slate-800">${l.kilos} <small class="text-xs text-slate-400">kg</small></span>
-                        <button onclick="markSurtido('${l.id}')" class="bg-slate-900 text-white text-[10px] font-black px-4 py-2 rounded-lg hover:bg-blue-600 transition uppercase tracking-widest">
-                            MARCAR SURTIDO
-                        </button>
+                    <h4 class="font-bold text-slate-800 leading-tight mb-1">${o.client}</h4>
+                    <p class="text-xs text-slate-500 mb-4 italic">${o.product}</p>
+                    <div class="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg">
+                        <i class="far fa-calendar text-blue-500 text-xs"></i>
+                        <span class="text-xs font-bold text-slate-700">${o.date_planned}</span>
+                        <span class="ml-auto text-xs font-black text-blue-600">${o.qty_planned} kg fijados</span>
                     </div>
-                </div>
-            `).join('');
-        }
-
-        function markSurtido(id) {
-            const idx = logs.findIndex(l => l.id === id);
-            if(idx !== -1) {
-                logs[idx].status = 'surtido';
-                localStorage.setItem('LOG_DATA', JSON.stringify(logs));
-                notify("Material marcado como SURTIDO");
-                renderControl();
-            }
-        }
-
-        // HISTORIAL
-        function renderHistorial() {
-            const select = document.getElementById('h-select-cliente');
-            const clies = [...new Set(logs.map(l => l.cliente))].sort();
-            const currentVal = select.value;
-            
-            select.innerHTML = '<option value="ALL">TODOS LOS CLIENTES</option>' + 
-                               clies.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
-
-            const filter = select.value;
-            const data = filter === 'ALL' ? logs : logs.filter(l => l.cliente === filter);
-            const table = document.getElementById('h-table-body');
-            
-            let total = 0;
-            table.innerHTML = data.sort((a,b) => b.ts - a.ts).map(l => {
-                total += l.kilos;
-                return `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="px-6 py-4 font-medium text-slate-500">${l.fecha}</td>
-                        <td class="px-6 py-4 font-bold text-slate-800">${l.cliente}</td>
-                        <td class="px-6 py-4 text-slate-600">${l.item}</td>
-                        <td class="px-6 py-4 font-bold text-blue-600">${l.kilos} kg</td>
-                        <td class="px-6 py-4">
-                            <span class="status-badge ${l.status === 'surtido' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${l.status}</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            <button onclick="deleteLog('${l.id}')" class="text-slate-300 hover:text-red-500 transition">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </td>
-                    </tr>
+                    ${o.status === 'PENDIENTE' ? `
+                        <div class="space-y-3 pt-2 border-t border-slate-100">
+                            <label class="text-[9px] font-bold text-slate-400 uppercase">Cantidad Real Despachada (kg)</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="real-input-${o.id}" class="input-pro flex-1 text-sm py-2" placeholder="0.00">
+                                <button onclick="markAsSurtido('${o.id}')" class="btn-primary py-2 px-4 bg-emerald-600 hover:bg-emerald-700">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
+                            <span class="text-[10px] font-bold text-emerald-600 uppercase">Surtido Real:</span>
+                            <span class="text-sm font-black text-slate-800">${o.qty_real} kg</span>
+                        </div>
+                    `}
                 `;
-            }).join('');
-
-            document.getElementById('h-total-units').innerText = total.toFixed(2) + " kg";
+                container.appendChild(card);
+            });
         }
 
-        function deleteLog(id) {
-            if(confirm("¿Seguro que deseas eliminar este registro?")) {
-                logs = logs.filter(l => l.id !== id);
-                localStorage.setItem('LOG_DATA', JSON.stringify(logs));
-                renderHistorial();
-            }
-        }
+        function markAsSurtido(id) {
+            const input = document.getElementById(`real-input-${id}`);
+            const val = parseFloat(input.value);
+            if (isNaN(val) || val < 0) return notify("Ingrese cantidad real válida", "error");
 
-        // REPORTES (Lógica de Volumen Mejorada)
-        function renderReportes() {
-            const totalMov = logs.length;
-            const totalUni = logs.reduce((acc, l) => acc + l.kilos, 0);
-            const surtidos = logs.filter(l => l.status === 'surtido').length;
-            const eff = totalMov > 0 ? ((surtidos / totalMov) * 100).toFixed(1) : 0;
-
-            document.getElementById('rep-mov').innerText = totalMov;
-            document.getElementById('rep-uni').innerText = totalUni.toLocaleString() + " kg";
-            document.getElementById('rep-eff').innerText = eff + "%";
-
-            // Lógica de Mes Actual y Pasado
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
+            const order = orders.find(o => o.id === id);
+            order.qty_real = val;
+            order.status = 'SURTIDO';
+            order.date_actual = new Date().toISOString().split('T')[0];
             
+            saveOrders();
+            renderControl();
+            notify("Despacho confirmado", "success");
+        }
+
+        function renderHistorial() {
+            const body = document.getElementById('h-table-body');
+            const clientFilter = document.getElementById('h-select-cliente').value;
+            body.innerHTML = '';
+
+            let tFijado = 0;
+            let tReal = 0;
+
+            const filtered = orders.filter(o => clientFilter === 'TODOS' || o.client === clientFilter)
+                                   .sort((a, b) => b.timestamp - a.timestamp);
+
+            filtered.forEach(o => {
+                const diff = o.qty_real - o.qty_planned;
+                const diffColor = diff < 0 ? 'text-red-500' : (diff > 0 ? 'text-emerald-500' : 'text-slate-400');
+                
+                tFijado += o.qty_planned;
+                tReal += o.qty_real;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-mono text-[10px] text-slate-400">${o.id}</td>
+                    <td class="px-6 py-4">
+                        <p class="font-bold text-slate-700">${o.client}</p>
+                        <p class="text-[10px] text-slate-400">${o.product}</p>
+                    </td>
+                    <td class="px-6 py-4 text-center font-bold text-slate-600">${o.qty_planned}</td>
+                    <td class="px-6 py-4 text-center font-black text-blue-600">${o.qty_real || '-'}</td>
+                    <td class="px-6 py-4 text-center font-bold ${diffColor}">${o.status === 'SURTIDO' ? (diff > 0 ? '+' : '') + diff : '-'}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="confirmDelete('${o.id}')" class="text-slate-300 hover:text-red-500 transition-colors">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+
+            document.getElementById('h-total-fijado').textContent = `${tFijado.toLocaleString()} kg`;
+            document.getElementById('h-total-real').textContent = `${tReal.toLocaleString()} kg`;
+            updateClientDropdowns();
+        }
+
+        function renderReportes() {
+            const selectedMonth = parseInt(document.getElementById('rep-select-month').value);
+            const selectedYear = parseInt(document.getElementById('rep-select-year').value);
             const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
             
-            document.getElementById('rep-month-name').innerText = monthNames[currentMonth] + " " + currentYear;
+            document.getElementById('rep-mes-label').textContent = `${monthNames[selectedMonth]} ${selectedYear}`;
 
-            // Filtrar Volumen Mes Actual
-            const currentMonthLogs = logs.filter(l => {
-                const d = new Date(l.fecha);
-                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-            });
-            const currentMonthQty = currentMonthLogs.reduce((acc, l) => acc + l.kilos, 0);
-            document.getElementById('rep-month-qty').innerHTML = `${currentMonthQty.toLocaleString()} <small class="text-lg">kg</small>`;
+            let tFijadoGlobal = 0, tRealGlobal = 0, periodFijado = 0, periodReal = 0;
+            const clientStats = {};
+            const monthlyTrend = {};
 
-            // Filtrar Volumen Mes Pasado
-            let prevMonth = currentMonth - 1;
-            let prevYear = currentYear;
-            if (prevMonth < 0) {
-                prevMonth = 11;
-                prevYear -= 1;
-            }
+            orders.forEach(o => {
+                const date = new Date(o.date_actual || o.date_planned);
+                const m = date.getMonth();
+                const y = date.getFullYear();
 
-            document.getElementById('rep-prev-month-name').innerText = monthNames[prevMonth] + " " + prevYear;
-            
-            const prevMonthLogs = logs.filter(l => {
-                const d = new Date(l.fecha);
-                return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-            });
-            const prevMonthQty = prevMonthLogs.reduce((acc, l) => acc + l.kilos, 0);
-            document.getElementById('rep-prev-month-qty').innerHTML = `${prevMonthQty.toLocaleString()} <small class="text-sm">kg</small>`;
+                tFijadoGlobal += o.qty_planned;
+                tRealGlobal += o.qty_real;
 
-            // Cálculo de Crecimiento MoM (Month over Month)
-            const growthTag = document.getElementById('rep-growth-tag');
-            if (prevMonthQty > 0) {
-                const growth = ((currentMonthQty - prevMonthQty) / prevMonthQty) * 100;
-                growthTag.innerText = (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%';
-                growthTag.className = `text-[10px] font-bold px-2 py-0.5 rounded-full ${growth >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`;
-            } else {
-                growthTag.innerText = "N/A";
-                growthTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400";
-            }
+                if (m === selectedMonth && y === selectedYear) {
+                    periodFijado += o.qty_planned;
+                    periodReal += o.qty_real;
+                    if (!clientStats[o.client]) clientStats[o.client] = { planned: 0, real: 0 };
+                    clientStats[o.client].planned += o.qty_planned;
+                    clientStats[o.client].real += o.qty_real;
+                }
 
-            // Gráfico
-            const clientData = {};
-            logs.forEach(l => {
-                clientData[l.cliente] = (clientData[l.cliente] || 0) + l.kilos;
+                const key = `${monthNames[m]} ${y}`;
+                if (!monthlyTrend[key]) monthlyTrend[key] = 0;
+                monthlyTrend[key] += o.qty_real;
             });
 
-            const labels = Object.keys(clientData);
-            const values = Object.values(clientData);
+            const diff = periodReal - periodFijado;
+            const efc = periodFijado > 0 ? Math.round((periodReal / periodFijado) * 100) : 0;
 
-            if(activeChart) activeChart.destroy();
-            const ctx = document.getElementById('chartClientes').getContext('2d');
-            activeChart = new Chart(ctx, {
-                type: 'doughnut',
+            document.getElementById('rep-fijado').textContent = `${periodFijado.toLocaleString()} kg`;
+            document.getElementById('rep-real').textContent = `${periodReal.toLocaleString()} kg`;
+            document.getElementById('rep-eficiencia').textContent = `Eficiencia: ${efc}%`;
+            document.getElementById('rep-mes-actual').textContent = `${periodReal.toLocaleString()} kg`;
+            document.getElementById('rep-diff').textContent = `${diff.toLocaleString()} kg`;
+            document.getElementById('rep-mes-deficiencia').textContent = `Déficit: ${Math.abs(Math.min(0, diff)).toLocaleString()} kg`;
+            document.getElementById('rep-mes-deficiencia').className = `text-[9px] font-bold ${diff >= 0 ? 'text-emerald-500 bg-emerald-50' : 'text-red-500 bg-red-50'} px-2 py-0.5 rounded-full inline-block mt-2`;
+            document.getElementById('rep-mes-deficiencia').textContent = diff >= 0 ? `Excedente: ${diff} kg` : `Déficit: ${Math.abs(diff)} kg`;
+
+            updateCharts(monthlyTrend, clientStats);
+            renderTopClients(clientStats);
+        }
+
+        function updateCharts(trendData, clients) {
+            // Trend Chart
+            const trendCtx = document.getElementById('chartMensual').getContext('2d');
+            if (charts.mensual) charts.mensual.destroy();
+            charts.mensual = new Chart(trendCtx, {
+                type: 'line',
                 data: {
-                    labels,
+                    labels: Object.keys(trendData),
                     datasets: [{
-                        data: values,
-                        backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'],
-                        borderWidth: 0
+                        label: 'Salida Real (kg)',
+                        data: Object.values(trendData),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
-                    },
-                    cutout: '70%'
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
             });
+
+            // Efficiency Chart
+            const efcCtx = document.getElementById('chartEficiencia').getContext('2d');
+            if (charts.eficiencia) charts.eficiencia.destroy();
+            charts.eficiencia = new Chart(efcCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(clients),
+                    datasets: [
+                        { label: 'Fijado', data: Object.values(clients).map(v => v.planned), backgroundColor: '#cbd5e1' },
+                        { label: 'Real', data: Object.values(clients).map(v => v.real), backgroundColor: '#2563eb' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderTopClients(stats) {
+            const container = document.getElementById('top-items-list');
+            container.innerHTML = '';
+            const sorted = Object.entries(stats).sort((a, b) => b[1].real - a[1].real).slice(0, 5);
+
+            sorted.forEach(([name, data]) => {
+                const perc = data.planned > 0 ? Math.min(100, Math.round((data.real / data.planned) * 100)) : 0;
+                const div = document.createElement('div');
+                div.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-slate-700">${name}</span>
+                        <span class="text-[10px] font-black text-slate-500">${data.real.toLocaleString()} kg</span>
+                    </div>
+                    <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                        <div class="bg-blue-500 h-full" style="width: ${perc}%"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- UTILS ---
+        function saveOrders() {
+            localStorage.setItem('LOG_PRO_ORDERS', JSON.stringify(orders));
+        }
+
+        function updateClientDropdowns() {
+            const select = document.getElementById('h-select-cliente');
+            const current = select.value;
+            const clients = [...new Set(orders.map(o => o.client))];
+            select.innerHTML = '<option value="TODOS">Todos los clientes</option>';
+            clients.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                select.appendChild(opt);
+            });
+            select.value = current;
+        }
+
+        function initYearSelector() {
+            const sel = document.getElementById('rep-select-year');
+            const years = [...new Set(orders.map(o => new Date(o.date_planned).getFullYear()))];
+            const now = new Date().getFullYear();
+            if (!years.includes(now)) years.push(now);
+            sel.innerHTML = '';
+            years.sort((a,b) => b-a).forEach(y => {
+                sel.innerHTML += `<option value="${y}">${y}</option>`;
+            });
+        }
+
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+            document.getElementById('view-title').textContent = tabId.replace('-', ' ');
+            if (tabId === 'control') renderControl();
+            if (tabId === 'historial') renderHistorial();
+            if (tabId === 'reportes') renderReportes();
+        }
+
+        function notify(msg, type) {
+            const container = document.getElementById('notification-container');
+            const div = document.createElement('div');
+            div.className = `notification animate-fade`;
+            div.style.borderLeftColor = type === 'success' ? '#10b981' : '#ef4444';
+            div.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle text-emerald-500' : 'fa-times-circle text-red-500'}"></i> <span class="text-sm font-semibold">${msg}</span>`;
+            container.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        function confirmDelete(id) {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.remove('hidden');
+            document.getElementById('modal-confirm-btn').onclick = () => {
+                orders = orders.filter(o => o.id !== id);
+                saveOrders();
+                renderHistorial();
+                closeModal();
+                notify("Registro eliminado", "success");
+            };
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function exportToCSV() {
+            let csv = "ID,Cliente,Producto,Fijado,Real,Diferencia,Fecha Planificada,Fecha Real\n";
+            orders.forEach(o => {
+                csv += `${o.id},${o.client},${o.product},${o.qty_planned},${o.qty_real},${o.qty_real - o.qty_planned},${o.date_planned},${o.date_actual || 'N/A'}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `LogisticsOS_Export_${new Date().toLocaleDateString()}.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function updateHeaderDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', options);
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        function requestResetApp() {
+            if (confirm("¿Estás seguro de que deseas borrar todos los datos y la configuración?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        function setPeriodToCurrent() {
+            const now = new Date();
+            document.getElementById('rep-select-month').value = now.getMonth();
+            document.getElementById('rep-select-year').value = now.getFullYear();
+            if (!document.getElementById('view-reportes').classList.contains('hidden')) renderReportes();
         }
     </script>
 </body>
